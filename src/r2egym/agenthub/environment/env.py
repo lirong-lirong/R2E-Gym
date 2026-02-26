@@ -4,16 +4,32 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, Any, Optional
 
-import gym
 import logging
 
 from r2egym.agenthub.action import Action
 from r2egym.agenthub.utils.log import get_logger
 from r2egym.agenthub.observation import Observation
-from r2egym.agenthub.runtime.docker import DockerRuntime
+from r2egym.agenthub.runtime.factory import RuntimeFactory
 from r2egym.agenthub.agent.commands import ParseCommandBash
 
 cmd_parser = ParseCommandBash()
+
+
+# Minimal gym.Env compatible base class to avoid gym dependency
+class GymEnv:
+    """Minimal gym.Env compatible base class."""
+
+    def reset(self):
+        raise NotImplementedError
+
+    def step(self, action):
+        raise NotImplementedError
+
+    def close(self):
+        pass
+
+    def render(self):
+        pass
 
 
 @dataclass(frozen=True)
@@ -25,7 +41,7 @@ class EnvArgs:
     docker_image: Optional[str] = None
 
 
-class RepoEnv(gym.Env):
+class RepoEnv(GymEnv):
     def __init__(self,
                  args: EnvArgs,
                  logger=None,
@@ -44,8 +60,11 @@ class RepoEnv(gym.Env):
             #logging.getLogger().setLevel(logging.CRITICAL)  # Disable root logger
             #logging.disable(logging.CRITICAL)  # Disable all logging
 
-        self.runtime = DockerRuntime(
-            ds=args.ds, command=["/bin/bash", "-l"], logger=self.logger, backend=backend
+        self.runtime = RuntimeFactory.create(
+            backend=backend,
+            ds=args.ds,
+            command=["/bin/bash", "-l"],
+            logger=self.logger,
         )
 
         self.args = args
@@ -71,8 +90,11 @@ class RepoEnv(gym.Env):
         self.state = None
         self.done = False
         # also just recreate env again with the same args
-        self.runtime = DockerRuntime(
-            ds=self.args.ds, command=["/bin/bash", "-l"], logger=self.logger, backend=self.backend
+        self.runtime = RuntimeFactory.create(
+            backend=self.backend,
+            ds=self.args.ds,
+            command=["/bin/bash", "-l"],
+            logger=self.logger,
         )
         return self.observation  # self.get_observation()
 
