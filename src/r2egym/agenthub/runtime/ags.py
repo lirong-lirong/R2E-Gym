@@ -96,7 +96,7 @@ class AGSConfig:
             tencentcloud_secret_id=os.getenv("TENCENTCLOUD_SECRET_ID", ""),
             tencentcloud_secret_key=os.getenv("TENCENTCLOUD_SECRET_KEY", ""),
             tencentcloud_region=os.getenv("TENCENTCLOUD_REGION", os.getenv("AGS_REGION", "ap-guangzhou")),
-            tencentcloud_role_arn=os.getenv("SANDBOX_ROLE_ARN", "qcs::cam::uin/3321337994:roleName/tcr-full-ags"),
+            tencentcloud_role_arn=os.getenv("SANDBOX_ROLE_ARN", ""),
             image_registry_type=os.getenv("SANDBOX_IMAGE_REGISTRY_TYPE", ""),
             image_namespace=os.getenv("AGS_TCR_NAMESPACE", "swe-sandbox"),
             tcr_registry=os.getenv("TCR_REGISTRY", "ccr.ccs.tencentyun.com"),
@@ -341,9 +341,6 @@ class AGSRuntime(ExecutionEnvironment):
             stderr = result.stderr or ""
             output = stdout + stderr
 
-            # Remove ANSI escape codes and \r characters
-            output = re.sub(r"\x1b\[[0-9;]*m|\r", "", output)
-
             exit_code = result.exit_code if hasattr(result, 'exit_code') else 0
 
             if exit_code == 124:
@@ -356,6 +353,8 @@ class AGSRuntime(ExecutionEnvironment):
                 )
                 return output, f"Error: Exit code {exit_code}"
 
+            # Remove ANSI escape codes and \r characters
+            output = re.sub(r"\x1b\[[0-9;]*m|\r", "", output)
             return output, str(exit_code)
 
         except Exception as e:
@@ -554,7 +553,7 @@ class AGSRuntime(ExecutionEnvironment):
             file_path: Path for new file
             content: File content
         """
-        self.sandbox.files.write(file_path, content, user="root")
+        self.sandbox.files.write(f"/{file_path}", content, user="root")
         return "", "0"
 
     def apply_patch(self, patch: str) -> tuple[str, str]:
